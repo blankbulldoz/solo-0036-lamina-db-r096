@@ -68,3 +68,21 @@ func (c *Catalog) Clone() *Catalog {
 	}
 	return n
 }
+
+// At returns the catalog as it stood at sequence at. Relations and indexes
+// created later are excluded, which is what a consumer applying an isolated
+// historical page needs to resolve each relation definition.
+func (c *Catalog) At(at uint64) *Catalog {
+	n := New()
+	for name, r := range c.Relations {
+		if r.Created <= at {
+			n.Relations[name] = r
+		}
+	}
+	for name, i := range c.Indexes {
+		if i.Created <= at {
+			n.Indexes[name] = i
+		}
+	}
+	return n
+}

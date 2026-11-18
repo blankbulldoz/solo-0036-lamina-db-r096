@@ -15,6 +15,13 @@ type Stats struct {
 	Commits        uint64         `json:"commits_since_open"`
 	Conflicts      uint64         `json:"conflicts_since_open"`
 	Queries        uint64         `json:"queries_since_open"`
+	SourceID       string         `json:"source_id"`
+	Epoch          string         `json:"epoch"`
+	JournalBase    uint64         `json:"journal_base"`
+	ChangeBase     uint64         `json:"change_base"`
+	ChangeHead     uint64         `json:"change_head"`
+	ChangeBytes    int64          `json:"change_bytes"`
+	Consumers      int            `json:"consumers"`
 }
 
 func (d *DB) Stats() (Stats, error) {
@@ -24,7 +31,7 @@ func (d *DB) Stats() (Stats, error) {
 		return Stats{}, err
 	}
 	keys, versions := d.store.Count()
-	s := Stats{Sequence: d.sequence, Horizon: d.horizon, Keys: keys, Versions: versions, Active: []Transaction{}, IndexEntries: map[string]int{}, JournalRecords: len(d.wal.Records), HistoryBase: d.wal.Base, RecoveredTail: d.wal.RecoveredTail, Commits: d.commits, Conflicts: d.conflicts, Queries: d.queries}
+	s := Stats{Sequence: d.sequence, Horizon: d.horizon, Keys: keys, Versions: versions, Active: []Transaction{}, IndexEntries: map[string]int{}, JournalRecords: len(d.wal.Records), HistoryBase: d.wal.Base, RecoveredTail: d.wal.RecoveredTail, Commits: d.commits, Conflicts: d.conflicts, Queries: d.queries, SourceID: d.identity.SourceID, Epoch: d.identity.Epoch, JournalBase: d.wal.Base, ChangeBase: d.archive.Base(), ChangeHead: d.archive.Head(), ChangeBytes: d.archive.Bytes(), Consumers: len(d.consumers)}
 	for _, tx := range d.transactions {
 		copy := *tx
 		copy.writes = nil

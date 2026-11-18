@@ -97,6 +97,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST "+p+"/vacuum", s.vacuum)
 	s.mux.HandleFunc("GET "+p+"/backup", s.backup)
 	s.mux.HandleFunc("GET "+p+"/changes", s.changes)
+	s.mux.HandleFunc("GET "+p+"/changes/bootstrap", s.bootstrap)
+	s.mux.HandleFunc("GET "+p+"/changes/digest", s.digest)
+	s.mux.HandleFunc("POST "+p+"/changes/ack", s.ack)
+	s.mux.HandleFunc("GET "+p+"/consumers", s.consumers)
+	s.mux.HandleFunc("GET "+p+"/retention", s.retention)
+	s.mux.HandleFunc("POST "+p+"/retention", s.retention)
+	s.mux.HandleFunc("GET "+p+"/identity", s.identity)
 	s.mux.HandleFunc("GET "+p+"/stats", s.stats)
 }
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {

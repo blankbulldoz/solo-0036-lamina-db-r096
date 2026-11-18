@@ -87,3 +87,19 @@ func (s *Store) Count() (keys, versions int) {
 	}
 	return
 }
+
+// At returns a store view containing only versions visible at sequence at,
+// with their original commit sequence preserved. It is the minimal starting
+// state a downstream consumer needs when it bootstraps from a source backup.
+func (s *Store) At(at uint64) *Store {
+	out := New()
+	for name, rows := range s.Tables {
+		out.Ensure(name)
+		for key, chain := range rows {
+			if v, ok := Visible(chain, at); ok && v.Sequence <= at {
+				out.Tables[name][key] = []Version{{Sequence: v.Sequence, Row: datum.Clone(v.Row)}}
+			}
+		}
+	}
+	return out
+}

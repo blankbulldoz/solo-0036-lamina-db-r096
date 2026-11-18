@@ -13,13 +13,35 @@ import (
 
 const MaxImage = 128 << 20
 
-type Image struct {
-	Format   int              `json:"format"`
-	Sequence uint64           `json:"sequence"`
-	Horizon  uint64           `json:"horizon"`
-	Catalog  *catalog.Catalog `json:"catalog"`
-	Store    *versions.Store  `json:"store"`
+// Origin records the lineage a restored image was derived from. It is nil for
+// a database that was created from scratch.
+type Origin struct {
+	SourceID string `json:"source_id"`
+	Sequence uint64 `json:"sequence"`
 }
+
+type Image struct {
+	Format    int              `json:"format"`
+	Sequence  uint64           `json:"sequence"`
+	Horizon   uint64           `json:"horizon"`
+	SourceID  string           `json:"source_id,omitempty"`
+	Epoch     string           `json:"epoch,omitempty"`
+	Origin    *Origin          `json:"origin,omitempty"`
+	Digest    string           `json:"digest,omitempty"`
+	Retention *Retention       `json:"retention,omitempty"`
+	Catalog   *catalog.Catalog `json:"catalog"`
+	Store     *versions.Store  `json:"store"`
+}
+
+// Retention is the portable source resource policy. It travels with the image
+// so a restore starts with the operator's trade-off instead of a silent
+// default.
+type Retention struct {
+	MaxBytes      int64  `json:"max_bytes"`
+	MaxLagRecords uint64 `json:"max_lag_records"`
+	MaxLagSeconds uint64 `json:"max_lag_seconds"`
+}
+
 type Envelope struct {
 	Format  int             `json:"format"`
 	Digest  string          `json:"sha256"`
@@ -71,6 +93,12 @@ func Read(path string) (Image, error) {
 func Validate(image Image) error {
 	if image.Format != 1 || image.Horizon > image.Sequence || image.Catalog == nil || image.Store == nil || image.Catalog.Relations == nil || image.Catalog.Indexes == nil || image.Store.Tables == nil {
 		return fmt.Errorf("invalid image header")
+	}
+	if image.Epoch != "" || image.SourceID != "" {
+		identity := Identity{Format: 1, SourceID: image.SourceID, Epoch: image.Epoch, Origin: image.Origin}
+		if err := identity.Validate(); err != nil {
+			return fmt.Errorf("image lineage: %w", err)
+		}
 	}
 	for name, r := range image.Catalog.Relations {
 		if name != r.Name || r.Created == 0 || r.Created > image.Sequence {

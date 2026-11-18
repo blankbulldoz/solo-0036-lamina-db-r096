@@ -1,9 +1,7 @@
 package transport
 
 import (
-	"lamina/internal/engine"
 	"net/http"
-	"strconv"
 )
 
 func (s *Server) checkpoint(w http.ResponseWriter, r *http.Request) {
@@ -40,31 +38,6 @@ func (s *Server) backup(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 	out, err := s.db.Stats()
-	if err != nil {
-		respondError(w, err)
-		return
-	}
-	write(w, 200, out)
-}
-func (s *Server) changes(w http.ResponseWriter, r *http.Request) {
-	after := uint64(0)
-	limit := 100
-	var err error
-	if value := r.URL.Query().Get("after"); value != "" {
-		after, err = strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			respondError(w, &engine.Error{Code: "invalid", Message: "invalid after"})
-			return
-		}
-	}
-	if value := r.URL.Query().Get("limit"); value != "" {
-		limit, err = strconv.Atoi(value)
-		if err != nil {
-			respondError(w, &engine.Error{Code: "invalid", Message: "invalid limit"})
-			return
-		}
-	}
-	out, err := s.db.Changes(after, limit)
 	if err != nil {
 		respondError(w, err)
 		return

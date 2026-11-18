@@ -4,7 +4,7 @@
   "source_extensions": [
     ".go"
   ],
-  "build_command": "go build -o bin/laminad ./cmd/laminad",
+  "build_command": "go build -o bin/laminad ./cmd/laminad && go build -o bin/lamina-consumer ./cmd/lamina-consumer",
   "testing": "deferred",
   "workflow_checks": [
     {
@@ -62,6 +62,30 @@
     {
       "workflow_id": "statistics",
       "command": "python3 examples/walkthrough.py --workflow statistics"
+    },
+    {
+      "workflow_id": "consumer-catch-up",
+      "command": "python3 examples/consumer.py --workflow consumer-catch-up"
+    },
+    {
+      "workflow_id": "downstream-disconnect",
+      "command": "python3 examples/consumer.py --workflow downstream-disconnect"
+    },
+    {
+      "workflow_id": "downstream-duplicate",
+      "command": "python3 examples/consumer.py --workflow downstream-duplicate"
+    },
+    {
+      "workflow_id": "downstream-retention",
+      "command": "python3 examples/consumer.py --workflow downstream-retention"
+    },
+    {
+      "workflow_id": "downstream-rebuild",
+      "command": "python3 examples/consumer.py --workflow downstream-rebuild"
+    },
+    {
+      "workflow_id": "downstream-restore-lineage",
+      "command": "python3 examples/consumer.py --workflow downstream-restore-lineage"
     }
   ]
 }

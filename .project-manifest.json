@@ -62,6 +62,24 @@
       "name": "syntax",
       "path": "internal/syntax",
       "responsibility": "SQL subset lexer/parser to the same bound query and transaction semantics"
+    },
+    {
+      "id": "changelog",
+      "name": "changelog",
+      "path": "internal/changelog",
+      "responsibility": "bounded retained change archive with lineage base and atomic pruning"
+    },
+    {
+      "id": "consumer",
+      "name": "consumer",
+      "path": "internal/consumer",
+      "responsibility": "independent relational mirror with durable watermark and idempotent commit application"
+    },
+    {
+      "id": "downstream",
+      "name": "downstream",
+      "path": "internal/downstream",
+      "responsibility": "separate downstream HTTP process exposing sync, reinitialize and local queries"
     }
   ],
   "workflows": [
@@ -368,6 +386,123 @@
       "success": "query execution facts and database resource state produces a verified domain result",
       "failure": "candidates vs scanned vs returned have distinct meanings",
       "verification": "python3 examples/walkthrough.py --workflow statistics"
+    },
+    {
+      "id": "consumer-catch-up",
+      "name": "independent downstream catch-up",
+      "entry": "POST /reinitialize then POST /sync",
+      "steps": [
+        "consumer",
+        "downstream",
+        "changelog",
+        "engine",
+        "journal"
+      ],
+      "module_ids": [
+        "consumer",
+        "downstream",
+        "changelog",
+        "engine",
+        "journal"
+      ],
+      "success": "downstream applies complete commits and reports a durable watermark equal to the source head",
+      "failure": "page or page budget exhausted reports caught_up=false without overstating the watermark",
+      "verification": "python3 examples/consumer.py --workflow catch-up"
+    },
+    {
+      "id": "downstream-disconnect",
+      "name": "downstream disconnect, restart and resume",
+      "entry": "POST /sync before and after restart",
+      "steps": [
+        "consumer",
+        "downstream",
+        "changelog"
+      ],
+      "module_ids": [
+        "consumer",
+        "downstream",
+        "changelog"
+      ],
+      "success": "restart resumes exactly after the durable watermark and catches up to a head written while down",
+      "failure": "no applied transaction becomes visible in half after replay",
+      "verification": "python3 examples/consumer.py --workflow disconnect"
+    },
+    {
+      "id": "downstream-duplicate",
+      "name": "duplicate page delivery and transaction atomicity",
+      "entry": "POST /sync with replay_from",
+      "steps": [
+        "consumer",
+        "downstream",
+        "journal"
+      ],
+      "module_ids": [
+        "consumer",
+        "downstream",
+        "journal"
+      ],
+      "success": "redelivered commits are counted as duplicates and leave rows and watermark unchanged",
+      "failure": "a multi-write transaction is never split at a visible page boundary",
+      "verification": "python3 examples/consumer.py --workflow duplicate-page"
+    },
+    {
+      "id": "downstream-retention",
+      "name": "retention budget, lag window and reinitialization",
+      "entry": "POST /retention; POST /changes/ack then POST /sync",
+      "steps": [
+        "engine",
+        "changelog",
+        "consumer"
+      ],
+      "module_ids": [
+        "engine",
+        "changelog",
+        "consumer",
+        "downstream"
+      ],
+      "success": "slow consumers inside their window are protected while the archive stays inside its byte budget",
+      "failure": "a consumer beyond its window gets a stale-cursor error and must reinitialize from a bootstrap",
+      "verification": "python3 examples/consumer.py --workflow retention"
+    },
+    {
+      "id": "downstream-rebuild",
+      "name": "identity and epoch reject a rebuilt source",
+      "entry": "GET /changes after a source restore",
+      "steps": [
+        "engine",
+        "changelog",
+        "consumer"
+      ],
+      "module_ids": [
+        "engine",
+        "changelog",
+        "consumer",
+        "snapshot"
+      ],
+      "success": "a source rebuilt from a backup is refused even when sequence numbers overlap",
+      "failure": "the only recovery is a bootstrap that adopts the new epoch and records origin",
+      "verification": "python3 examples/consumer.py --workflow rebuild"
+    },
+    {
+      "id": "downstream-restore-lineage",
+      "name": "source self-restore breaks consumer history",
+      "entry": "laminad -restore then GET /changes",
+      "steps": [
+        "engine",
+        "snapshot",
+        "journal",
+        "consumer"
+      ],
+      "module_ids": [
+        "engine",
+        "snapshot",
+        "journal",
+        "consumer",
+        "changelog"
+      ],
+      "success": "restored source keeps its source_id, issues a new epoch and refuses old cursors with 410",
+      "failure": "a consumer resumes only after reinitializing at the restored lineage point",
+      "verification": "python3 examples/consumer.py --workflow restore-lineage"
     }
   ],
   "complexity": {
